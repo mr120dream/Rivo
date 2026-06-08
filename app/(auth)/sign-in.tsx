@@ -4,6 +4,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,36 +15,82 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { authColors } from '../../constants/authTheme';
 import { useAuth } from '../../contexts/AuthContext';
-import { colors, radii, spacing } from '../../constants/theme';
+
+function validateEmail(email: string): string | null {
+  if (!email.trim()) {
+    return 'Email is required.';
+  }
+  if (!email.includes('@')) {
+    return 'Enter a valid email address.';
+  }
+  return null;
+}
+
+function validatePassword(password: string): string | null {
+  if (!password) {
+    return 'Password is required.';
+  }
+  if (password.length < 6) {
+    return 'Password must be at least 6 characters.';
+  }
+  return null;
+}
 
 export default function SignInScreen() {
-  const { signIn, signInWithApple } = useAuth();
+  const { signIn, signInWithApple, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
 
   const handleSignIn = async () => {
-    setError(null);
+    const nextEmailError = validateEmail(email);
+    const nextPasswordError = validatePassword(password);
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+    setFormError(null);
+
+    if (nextEmailError || nextPasswordError) {
+      return;
+    }
+
     setSubmitting(true);
     const result = await signIn(email.trim(), password);
     setSubmitting(false);
     if (result.error) {
-      setError(result.error);
+      setFormError(result.error);
       return;
     }
     router.replace('/');
   };
 
+  const handleForgotPassword = async () => {
+    const nextEmailError = validateEmail(email);
+    setEmailError(nextEmailError);
+    if (nextEmailError) {
+      return;
+    }
+
+    const result = await resetPassword(email.trim());
+    if (result.error) {
+      Alert.alert('Could not send reset email', result.error);
+      return;
+    }
+    Alert.alert('Check your email', 'We sent a password reset link to your inbox.');
+  };
+
   const handleAppleSignIn = async () => {
-    setError(null);
+    setFormError(null);
     setAppleLoading(true);
     const result = await signInWithApple();
     setAppleLoading(false);
     if (result.error) {
-      setError(result.error);
+      setFormError(result.error);
       return;
     }
     router.replace('/');
@@ -62,36 +109,48 @@ export default function SignInScreen() {
           <View style={styles.form}>
             <Text style={styles.label}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, emailError && styles.inputError]}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => {
+                setEmail(value);
+                setEmailError(null);
+              }}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
               placeholder="you@example.com"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={authColors.textSecondary}
             />
+            {emailError ? <Text style={styles.fieldError}>{emailError}</Text> : null}
 
             <Text style={styles.label}>Password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, passwordError && styles.inputError]}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(value) => {
+                setPassword(value);
+                setPasswordError(null);
+              }}
               secureTextEntry
               autoComplete="password"
               placeholder="Your password"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={authColors.textSecondary}
             />
+            {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Pressable onPress={() => void handleForgotPassword()} style={styles.forgotLink}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </Pressable>
+
+            {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
             <Pressable
               style={[styles.primaryButton, submitting && styles.buttonDisabled]}
-              onPress={handleSignIn}
+              onPress={() => void handleSignIn()}
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator color={colors.surface} />
+                <ActivityIndicator color={authColors.text} />
               ) : (
                 <Text style={styles.primaryButtonText}>Sign in</Text>
               )}
@@ -100,22 +159,22 @@ export default function SignInScreen() {
             {Platform.OS === 'ios' ? (
               <View style={styles.appleWrap}>
                 {appleLoading ? (
-                  <ActivityIndicator color={colors.text} />
+                  <ActivityIndicator color={authColors.text} />
                 ) : (
                   <AppleAuthentication.AppleAuthenticationButton
                     buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
                     buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                    cornerRadius={radii.md}
+                    cornerRadius={12}
                     style={styles.appleButton}
                     onPress={handleAppleSignIn}
                   />
                 )}
               </View>
             ) : (
-              <View style={styles.appleFallback}>
-                <Ionicons name="logo-apple" size={18} color={colors.textSecondary} />
-                <Text style={styles.appleFallbackText}>Apple Sign In available on iOS</Text>
-              </View>
+              <Pressable style={styles.appleFallback} disabled>
+                <Ionicons name="logo-apple" size={18} color={authColors.text} />
+                <Text style={styles.appleFallbackText}>Sign in with Apple</Text>
+              </Pressable>
             )}
           </View>
 
@@ -123,7 +182,7 @@ export default function SignInScreen() {
             <Text style={styles.footerText}>New to Rivo?</Text>
             <Link href="/(auth)/sign-up" asChild>
               <Pressable>
-                <Text style={styles.footerLink}> Create an account</Text>
+                <Text style={styles.footerLink}> Create account</Text>
               </Pressable>
             </Link>
           </View>
@@ -136,73 +195,89 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: authColors.background,
   },
   flex: {
     flex: 1,
   },
   container: {
     flexGrow: 1,
-    padding: spacing.lg,
+    padding: 24,
     justifyContent: 'center',
   },
   logo: {
     fontSize: 40,
     fontWeight: '800',
-    color: colors.primary,
-    marginBottom: spacing.xs,
+    color: authColors.accent,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 17,
-    color: colors.textSecondary,
-    marginBottom: spacing.xl,
+    color: authColors.textSecondary,
+    marginBottom: 32,
   },
   form: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
+    backgroundColor: authColors.card,
+    borderRadius: 16,
+    padding: 24,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: authColors.border,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.xs,
-    marginTop: spacing.sm,
+    color: authColors.text,
+    marginBottom: 6,
+    marginTop: 12,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
+    borderColor: authColors.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.background,
+    color: authColors.text,
+    backgroundColor: authColors.input,
   },
-  error: {
-    color: colors.error,
-    marginTop: spacing.md,
+  inputError: {
+    borderColor: authColors.error,
+  },
+  fieldError: {
+    color: authColors.error,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+  },
+  forgotText: {
+    color: authColors.textSecondary,
+    fontSize: 13,
+  },
+  formError: {
+    color: authColors.error,
+    marginTop: 16,
     fontSize: 14,
   },
   primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.md,
+    backgroundColor: authColors.accent,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: spacing.lg,
+    marginTop: 20,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   primaryButtonText: {
-    color: colors.surface,
+    color: authColors.text,
     fontSize: 16,
     fontWeight: '600',
   },
   appleWrap: {
-    marginTop: spacing.md,
+    marginTop: 16,
     alignItems: 'center',
     minHeight: 48,
     justifyContent: 'center',
@@ -215,23 +290,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.md,
-    gap: spacing.xs,
+    marginTop: 16,
+    gap: 8,
+    backgroundColor: '#000000',
+    borderRadius: 12,
+    paddingVertical: 14,
   },
   appleFallbackText: {
-    color: colors.textSecondary,
-    fontSize: 13,
+    color: authColors.text,
+    fontSize: 15,
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: spacing.lg,
+    marginTop: 24,
   },
   footerText: {
-    color: colors.textSecondary,
+    color: authColors.textSecondary,
   },
   footerLink: {
-    color: colors.primary,
+    color: authColors.accent,
     fontWeight: '600',
   },
 });

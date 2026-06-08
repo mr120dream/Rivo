@@ -32,9 +32,9 @@ const PLANS: {
   detail: string;
   badge?: string;
 }[] = [
-  { id: 'monthly', label: 'Monthly', price: '$6.99', detail: 'per month' },
-  { id: 'annual', label: 'Annual', price: '$49.99', detail: 'per year', badge: 'Best value' },
-  { id: 'lifetime', label: 'Lifetime', price: '$99', detail: 'one time' },
+  { id: 'monthly', label: 'Monthly', price: '$4.99', detail: 'per month' },
+  { id: 'annual', label: 'Annual', price: '$34.99', detail: 'per year', badge: 'Save 42%' },
+  { id: 'lifetime', label: 'Lifetime', price: '$29.99', detail: 'one time' },
 ];
 
 export function PaywallSheet({ visible, onClose }: PaywallSheetProps) {

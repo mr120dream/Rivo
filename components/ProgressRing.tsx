@@ -6,9 +6,17 @@ type ProgressRingProps = {
   progress: number;
   size?: number;
   strokeWidth?: number;
+  accentColor?: string;
+  trackColor?: string;
 };
 
-export function ProgressRing({ progress, size = 88, strokeWidth = 8 }: ProgressRingProps) {
+export function ProgressRing({
+  progress,
+  size = 88,
+  strokeWidth = 8,
+  accentColor = colors.primary,
+  trackColor = colors.border,
+}: ProgressRingProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const clampedProgress = Math.min(Math.max(progress, 0), 1);
@@ -22,7 +30,7 @@ export function ProgressRing({ progress, size = 88, strokeWidth = 8 }: ProgressR
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={colors.border}
+          stroke={trackColor}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -30,7 +38,7 @@ export function ProgressRing({ progress, size = 88, strokeWidth = 8 }: ProgressR
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={colors.primary}
+          stroke={accentColor}
           strokeWidth={strokeWidth}
           fill="none"
           strokeDasharray={`${circumference} ${circumference}`}

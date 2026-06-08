@@ -1,12 +1,13 @@
+import { useMemo } from 'react';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
 import { HabitDayView } from '../../components/HabitDayView';
-import { colors } from '../../constants/theme';
-import { useAuth } from '../../contexts/AuthContext';
+import { TodayEmptyState } from '../../components/TodayEmptyState';
+import { UpcomingHabitBanner } from '../../components/UpcomingHabitBanner';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { useHabits } from '../../contexts/HabitsContext';
+import { formatMinutesUntil, getNextUpcomingHabit } from '../../lib/upcoming';
 
 export default function TodayScreen() {
-  const { user, signOut } = useAuth();
   const {
     allHabits,
     todayHabits,
@@ -17,57 +18,45 @@ export default function TodayScreen() {
     loading,
     error,
     retry,
+    refresh,
+    refreshing,
   } = useHabits();
 
-  const handleEdit = (habit: { id: string }) => {
-    router.push({ pathname: '/(tabs)/add-habit', params: { editId: habit.id } });
-  };
-
-  const emptyTitle = allHabits.length === 0 ? 'No habits yet' : 'Nothing scheduled today';
-  const emptyBody =
-    allHabits.length === 0
-      ? 'Add your first habit to get started.'
-      : 'None of your habits are scheduled for today.';
+  const emptyVariant = allHabits.length === 0 ? 'no-habits' : 'nothing-scheduled';
+  const upcomingHabit = useMemo(() => getNextUpcomingHabit(todayHabits), [todayHabits]);
 
   return (
-    <HabitDayView
-      title="Today"
-      date={new Date()}
-      habits={todayHabits}
-      loading={loading}
-      error={error}
-      onRetry={retry}
-      onToggle={toggleHabit}
-      onEdit={handleEdit}
-      onDelete={deleteHabit}
-      completedCount={completedCount}
-      progress={progress}
-      emptyTitle={emptyTitle}
-      emptyBody={emptyBody}
-      showAddButton={allHabits.length === 0}
-      headerExtra={
-        user?.email ? (
-          <Pressable onPress={() => void signOut()} style={styles.signOutRow}>
-            <Text style={styles.email}>{user.email}</Text>
-            <Text style={styles.signOut}>Sign out</Text>
-          </Pressable>
-        ) : null
-      }
-    />
+    <ErrorBoundary>
+      <HabitDayView
+        title="Today"
+        date={new Date()}
+        habits={todayHabits}
+        loading={loading}
+        refreshing={refreshing}
+        onRefresh={() => void refresh()}
+        error={error}
+        onRetry={retry}
+        onToggle={toggleHabit}
+        onEdit={(habit) =>
+          router.push({ pathname: '/(tabs)/add-habit', params: { editId: habit.id } })
+        }
+        onDelete={deleteHabit}
+        completedCount={completedCount}
+        progress={progress}
+        emptyTitle=""
+        emptyBody=""
+        emptyContent={<TodayEmptyState variant={emptyVariant} />}
+        topSection={
+          upcomingHabit ? (
+            <UpcomingHabitBanner
+              label="Up next"
+              habit={upcomingHabit}
+              timeText={formatMinutesUntil(upcomingHabit.minutesFromNow)}
+              onPress={() => toggleHabit(upcomingHabit.id)}
+            />
+          ) : null
+        }
+      />
+    </ErrorBoundary>
   );
 }
-
-const styles = StyleSheet.create({
-  signOutRow: {
-    marginTop: 4,
-  },
-  email: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  signOut: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-});

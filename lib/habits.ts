@@ -8,6 +8,7 @@ import {
 } from '../types/habit';
 import { getLocalDateString } from './utils';
 import { ensureProfile } from './profiles';
+import { cancelFollowUpNotifications } from './notifications';
 import { getSupabase } from './supabase';
 
 const HABIT_ICONS: HabitIcon[] = [
@@ -67,6 +68,7 @@ export function mapHabitToNotifiable(habit: Habit): NotifiableHabit {
     reminder_enabled: habit.reminderEnabled,
     frequency: habit.frequency,
     custom_days: habit.customDays,
+    current_streak: habit.currentStreak ?? 0,
   };
 }
 
@@ -118,6 +120,66 @@ export async function fetchTodayCompletions(userId: string, date: string): Promi
   return fetchCompletionsForDate(userId, date);
 }
 
+export type HabitStreakHistory = {
+  currentStreak: number;
+  longestStreak: number;
+  lastCompletedDate: string | null;
+  recentDates: string[];
+};
+
+export async function fetchHabitStreakHistory(habitId: string): Promise<HabitStreakHistory> {
+  const supabase = getSupabase();
+  const [{ data: streak, error: streakError }, { data: completions, error: completionsError }] =
+    await Promise.all([
+      supabase
+        .from('streaks')
+        .select('current_streak, longest_streak, last_completed_date')
+        .eq('habit_id', habitId)
+        .maybeSingle(),
+      supabase
+        .from('completions')
+        .select('completed_date')
+        .eq('habit_id', habitId)
+        .order('completed_date', { ascending: false })
+        .limit(14),
+    ]);
+
+  if (streakError) {
+    throw streakError;
+  }
+  if (completionsError) {
+    throw completionsError;
+  }
+
+  return {
+    currentStreak: streak?.current_streak ?? 0,
+    longestStreak: streak?.longest_streak ?? 0,
+    lastCompletedDate: (streak?.last_completed_date as string | null) ?? null,
+    recentDates: completions?.map((row) => row.completed_date as string) ?? [],
+  };
+}
+
+export async function fetchStreakMap(habitIds: string[]): Promise<Record<string, number>> {
+  if (habitIds.length === 0) {
+    return {};
+  }
+
+  const { data, error } = await getSupabase()
+    .from('streaks')
+    .select('habit_id, current_streak')
+    .in('habit_id', habitIds);
+
+  if (error) {
+    throw error;
+  }
+
+  const map: Record<string, number> = {};
+  for (const row of data ?? []) {
+    map[row.habit_id as string] = row.current_streak as number;
+  }
+  return map;
+}
+
 export async function fetchHabitRows(userId: string, email?: string | null): Promise<Habit[]> {
   await ensureProfile(userId, email);
 
@@ -133,7 +195,13 @@ export async function fetchHabitRows(userId: string, email?: string | null): Pro
     throw habitsError;
   }
 
-  return (habitRows as DbHabit[] | null)?.map((row) => mapDbHabitToHabit(row, false)) ?? [];
+  const habits = (habitRows as DbHabit[] | null)?.map((row) => mapDbHabitToHabit(row, false)) ?? [];
+  const streakMap = await fetchStreakMap(habits.map((habit) => habit.id));
+
+  return habits.map((habit) => ({
+    ...habit,
+    currentStreak: streakMap[habit.id] ?? 0,
+  }));
 }
 
 export async function fetchHabits(userId: string, email?: string | null): Promise<Habit[]> {
@@ -232,6 +300,10 @@ export async function toggleCompletion(
   }
 
   await recalculateStreak(habitId);
+
+  if (completed) {
+    await cancelFollowUpNotifications(habitId);
+  }
 }
 
 export async function recalculateStreak(habitId: string): Promise<void> {

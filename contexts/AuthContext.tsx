@@ -17,6 +17,7 @@ import {
   verifySubscription,
 } from '../lib/stripe';
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
+import { cancelDailySummaryNotification } from '../lib/notifications';
 
 type AuthContextValue = {
   user: User | null;
@@ -29,6 +30,7 @@ type AuthContextValue = {
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithApple: () => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -136,7 +138,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     setSubscriptionStatus('free');
+    await cancelDailySummaryNotification();
     await getSupabase().auth.signOut();
+  }, []);
+
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await getSupabase().auth.resetPasswordForEmail(email.trim());
+    return { error: error?.message ?? null };
   }, []);
 
   const isPro = checkIsPro(subscriptionStatus);
@@ -153,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       signInWithApple,
+      resetPassword,
       signOut,
     }),
     [
@@ -165,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       signInWithApple,
+      resetPassword,
       signOut,
     ],
   );

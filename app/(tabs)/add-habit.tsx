@@ -14,6 +14,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Toast } from '../../components/Toast';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { FREQUENCY_OPTIONS } from '../../lib/habitSchedule';
 import { HABIT_ICONS, TIME_OF_DAY_OPTIONS } from '../../constants/habitIcons';
 import { colors, radii, spacing } from '../../constants/theme';
@@ -37,7 +39,7 @@ function parseReminderTime(time: string): Date {
 export default function AddHabitScreen() {
   const { editId } = useLocalSearchParams<{ editId?: string }>();
   const isEditing = Boolean(editId);
-  const { addHabit, updateHabit, getHabitById } = useHabits();
+  const { addHabit, updateHabit, getHabitById, loading: habitsLoading } = useHabits();
 
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<HabitIcon>('leaf');
@@ -47,14 +49,23 @@ export default function AddHabitScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [formReady, setFormReady] = useState(!editId);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!editId) {
+      setFormReady(true);
+      return;
+    }
+
+    if (habitsLoading) {
       return;
     }
 
     const habit = getHabitById(editId);
     if (!habit) {
+      setError('Habit not found.');
+      setFormReady(true);
       return;
     }
 
@@ -63,7 +74,9 @@ export default function AddHabitScreen() {
     setTimeOfDay(habit.timeOfDay);
     setFrequency(habit.frequency);
     setReminderDate(parseReminderTime(habit.reminderTime));
-  }, [editId, getHabitById]);
+    setError(null);
+    setFormReady(true);
+  }, [editId, habitsLoading, getHabitById]);
 
   const handleReminderChange = (_event: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') {
@@ -96,16 +109,12 @@ export default function AddHabitScreen() {
     try {
       if (isEditing && editId) {
         await updateHabit(editId, payload);
+        setToastMessage('Habit updated');
+        setTimeout(() => router.navigate('/(tabs)/'), 400);
       } else {
         await addHabit(payload);
-        setName('');
-        setIcon('leaf');
-        setTimeOfDay('morning');
-        setFrequency('daily');
-        setReminderDate(new Date(new Date().setHours(8, 0, 0, 0)));
+        router.navigate('/(tabs)/');
       }
-
-      router.navigate('/(tabs)/');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save habit.');
     } finally {
@@ -114,7 +123,9 @@ export default function AddHabitScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ErrorBoundary>
+      <SafeAreaView style={styles.safe} edges={['top']}>
+      <Toast message={toastMessage} onHide={() => setToastMessage(null)} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -123,10 +134,16 @@ export default function AddHabitScreen() {
           <Text style={styles.title}>{isEditing ? 'Edit habit' : 'Add habit'}</Text>
           <Text style={styles.subtitle}>
             {isEditing
-              ? 'Changes save to your account and update your reminder.'
+              ? submitting
+                ? 'Saving…'
+                : 'Changes save to your account and update your reminder.'
               : 'Saved to your account with a daily reminder.'}
           </Text>
 
+          {!formReady ? (
+            <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+          ) : (
+            <>
           <Text style={styles.label}>Name</Text>
           <TextInput
             style={styles.input}
@@ -220,9 +237,12 @@ export default function AddHabitScreen() {
               <Text style={styles.submitButtonText}>{isEditing ? 'Save changes' : 'Save habit'}</Text>
             )}
           </Pressable>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </ErrorBoundary>
   );
 }
 
@@ -248,6 +268,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: spacing.lg,
+  },
+  loader: {
+    marginTop: spacing.xl,
   },
   label: {
     fontSize: 14,

@@ -12,29 +12,54 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { authColors } from '../../constants/authTheme';
 import { useAuth } from '../../contexts/AuthContext';
-import { colors, radii, spacing } from '../../constants/theme';
+
+function validateEmail(email: string): string | null {
+  if (!email.trim()) {
+    return 'Email is required.';
+  }
+  if (!email.includes('@')) {
+    return 'Enter a valid email address.';
+  }
+  return null;
+}
+
+function validatePassword(password: string): string | null {
+  if (!password) {
+    return 'Password is required.';
+  }
+  if (password.length < 6) {
+    return 'Password must be at least 6 characters.';
+  }
+  return null;
+}
 
 export default function SignUpScreen() {
   const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSignUp = async () => {
-    setError(null);
+    const nextEmailError = validateEmail(email);
+    const nextPasswordError = validatePassword(password);
+    const nextConfirmError =
+      password !== confirmPassword ? 'Passwords do not match.' : null;
+
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+    setConfirmError(nextConfirmError);
+    setFormError(null);
     setSuccess(null);
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    if (nextEmailError || nextPasswordError || nextConfirmError) {
       return;
     }
 
@@ -43,7 +68,7 @@ export default function SignUpScreen() {
     setSubmitting(false);
 
     if (result.error) {
-      setError(result.error);
+      setFormError(result.error);
       return;
     }
 
@@ -61,56 +86,68 @@ export default function SignUpScreen() {
             <Text style={styles.backText}>← Back</Text>
           </Pressable>
 
-          <Text style={styles.title}>Create account</Text>
-          <Text style={styles.subtitle}>Start tracking your habits today.</Text>
+          <Text style={styles.logo}>Rivo</Text>
+          <Text style={styles.subtitle}>Build habits that stick.</Text>
 
           <View style={styles.form}>
             <Text style={styles.label}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, emailError && styles.inputError]}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => {
+                setEmail(value);
+                setEmailError(null);
+              }}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
               placeholder="you@example.com"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={authColors.textSecondary}
             />
+            {emailError ? <Text style={styles.fieldError}>{emailError}</Text> : null}
 
             <Text style={styles.label}>Password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, passwordError && styles.inputError]}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(value) => {
+                setPassword(value);
+                setPasswordError(null);
+              }}
               secureTextEntry
               autoComplete="new-password"
               placeholder="At least 6 characters"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={authColors.textSecondary}
             />
+            {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
 
             <Text style={styles.label}>Confirm password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, confirmError && styles.inputError]}
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(value) => {
+                setConfirmPassword(value);
+                setConfirmError(null);
+              }}
               secureTextEntry
               autoComplete="new-password"
               placeholder="Repeat password"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={authColors.textSecondary}
             />
+            {confirmError ? <Text style={styles.fieldError}>{confirmError}</Text> : null}
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {formError ? <Text style={styles.formError}>{formError}</Text> : null}
             {success ? <Text style={styles.success}>{success}</Text> : null}
 
             <Pressable
               style={[styles.primaryButton, submitting && styles.buttonDisabled]}
-              onPress={handleSignUp}
+              onPress={() => void handleSignUp()}
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator color={colors.surface} />
+                <ActivityIndicator color={authColors.text} />
               ) : (
-                <Text style={styles.primaryButtonText}>Sign up</Text>
+                <Text style={styles.primaryButtonText}>Create account</Text>
               )}
             </Pressable>
           </View>
@@ -132,93 +169,101 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: authColors.background,
   },
   flex: {
     flex: 1,
   },
   container: {
     flexGrow: 1,
-    padding: spacing.lg,
+    padding: 24,
   },
   back: {
-    marginBottom: spacing.md,
+    marginBottom: 16,
   },
   backText: {
-    color: colors.primary,
+    color: authColors.accent,
     fontSize: 16,
     fontWeight: '600',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.xs,
+  logo: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: authColors.accent,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
+    fontSize: 17,
+    color: authColors.textSecondary,
+    marginBottom: 32,
   },
   form: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
+    backgroundColor: authColors.card,
+    borderRadius: 16,
+    padding: 24,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: authColors.border,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.xs,
-    marginTop: spacing.sm,
+    color: authColors.text,
+    marginBottom: 6,
+    marginTop: 12,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
+    borderColor: authColors.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.background,
+    color: authColors.text,
+    backgroundColor: authColors.input,
   },
-  error: {
-    color: colors.error,
-    marginTop: spacing.md,
+  inputError: {
+    borderColor: authColors.error,
+  },
+  fieldError: {
+    color: authColors.error,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  formError: {
+    color: authColors.error,
+    marginTop: 16,
     fontSize: 14,
   },
   success: {
-    color: colors.success,
-    marginTop: spacing.md,
+    color: authColors.success,
+    marginTop: 16,
     fontSize: 14,
   },
   primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.md,
+    backgroundColor: authColors.accent,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: spacing.lg,
+    marginTop: 20,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   primaryButtonText: {
-    color: colors.surface,
+    color: authColors.text,
     fontSize: 16,
     fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: spacing.lg,
+    marginTop: 24,
   },
   footerText: {
-    color: colors.textSecondary,
+    color: authColors.textSecondary,
   },
   footerLink: {
-    color: colors.primary,
+    color: authColors.accent,
     fontWeight: '600',
   },
 });

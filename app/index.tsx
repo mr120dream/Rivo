@@ -1,8 +1,9 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { colors } from '../constants/theme';
+import { authColors } from '../constants/authTheme';
 import { useAuth } from '../contexts/AuthContext';
+import { isOnboardingComplete } from '../lib/onboarding';
 import { hasSeenNotificationPermission } from '../lib/notifications';
 import { isSupabaseConfigured } from '../lib/supabase';
 
@@ -10,6 +11,27 @@ export default function Index() {
   const { session, loading } = useAuth();
   const [routeReady, setRouteReady] = useState(false);
   const [needsNotificationPrompt, setNeedsNotificationPrompt] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    isOnboardingComplete()
+      .then((complete) => {
+        if (!cancelled) {
+          setOnboardingComplete(complete);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOnboardingComplete(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!session) {
@@ -43,12 +65,16 @@ export default function Index() {
     return <Redirect href="/config-required" />;
   }
 
-  if (loading || !routeReady) {
+  if (loading || onboardingComplete === null || (session && !routeReady)) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={authColors.accent} />
       </View>
     );
+  }
+
+  if (!onboardingComplete) {
+    return <Redirect href="/onboarding" />;
   }
 
   if (!session) {
@@ -67,6 +93,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: authColors.background,
   },
 });

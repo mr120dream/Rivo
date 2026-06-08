@@ -9,6 +9,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SkeletonCard } from '../../components/SkeletonCard';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { colors, radii, spacing } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePaywall } from '../../contexts/PaywallContext';
@@ -70,32 +72,44 @@ export default function AnalyticsScreen() {
 
   if (!isPro) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.lockedContainer}>
-          <View style={styles.lockIcon}>
-            <Ionicons name="bar-chart-outline" size={36} color={colors.primary} />
+      <ErrorBoundary>
+        <SafeAreaView style={styles.safe} edges={['top']}>
+          <View style={styles.lockedContainer}>
+            <View style={styles.lockIcon}>
+              <Ionicons name="bar-chart-outline" size={36} color={colors.primary} />
+            </View>
+            <Text style={styles.lockedTitle}>Analytics & Debrief</Text>
+            <Text style={styles.lockedBody}>
+              Upgrade to Rivo Pro for weekly trends, streak insights, and your personalized Claude
+              debrief.
+            </Text>
+            <Pressable style={styles.upgradeButton} onPress={showPaywall}>
+              <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
+            </Pressable>
           </View>
-          <Text style={styles.lockedTitle}>Analytics & Debrief</Text>
-          <Text style={styles.lockedBody}>
-            Upgrade to Rivo Pro for weekly trends, streak insights, and your personalized Claude
-            debrief.
-          </Text>
-          <Pressable style={styles.upgradeButton} onPress={showPaywall}>
-            <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ErrorBoundary>
+      <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Analytics</Text>
         <Text style={styles.subtitle}>Your last 7 days at a glance</Text>
 
         {loading ? (
-          <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+          <View style={styles.skeletonWrap}>
+            <View style={styles.statGrid}>
+              <SkeletonCard width="31%" height={88} />
+              <SkeletonCard width="31%" height={88} />
+              <SkeletonCard width="31%" height={88} />
+            </View>
+            <SkeletonCard height={56} />
+            <SkeletonCard height={56} />
+            <SkeletonCard height={120} />
+          </View>
         ) : analytics ? (
           <>
             <View style={styles.statGrid}>
@@ -162,6 +176,7 @@ export default function AnalyticsScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
     </SafeAreaView>
+    </ErrorBoundary>
   );
 }
 
@@ -185,8 +200,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     marginTop: 4,
   },
-  loader: {
-    marginTop: spacing.xl,
+  skeletonWrap: {
+    gap: spacing.sm,
   },
   statGrid: {
     flexDirection: 'row',

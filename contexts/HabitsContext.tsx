@@ -4,9 +4,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { playCelebrationHaptic, type CelebrationData } from '../components/CelebrationOverlay';
 import { isHabitScheduledForDate } from '../lib/habitSchedule';
 import {
   createHabit as createHabitInDb,
@@ -33,8 +35,10 @@ type HabitsContextValue = {
   tomorrowDate: string;
   loading: boolean;
   tomorrowLoading: boolean;
+  refreshing: boolean;
   error: string | null;
   retry: () => void;
+  refresh: () => Promise<void>;
   ensureTomorrowLoaded: () => void;
   toggleHabit: (id: string) => void;
   toggleHabitForDate: (id: string, date: string) => void;
@@ -46,6 +50,9 @@ type HabitsContextValue = {
   progress: number;
   tomorrowCompletedCount: number;
   tomorrowProgress: number;
+  showCelebration: boolean;
+  celebration: CelebrationData | null;
+  dismissCelebration: () => void;
 };
 
 const HabitsContext = createContext<HabitsContextValue | null>(null);
@@ -74,9 +81,66 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
   const [tomorrowLoading, setTomorrowLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tomorrowLoaded, setTomorrowLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebration, setCelebration] = useState<CelebrationData | null>(null);
+  const celebrationShownForDateRef = useRef<string | null>(null);
+  const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismissCelebration = useCallback(() => {
+    if (celebrationTimerRef.current) {
+      clearTimeout(celebrationTimerRef.current);
+      celebrationTimerRef.current = null;
+    }
+    setShowCelebration(false);
+  }, []);
 
   const today = getLocalDateString();
   const tomorrowDate = getTomorrowDateString();
+
+  const maybeCelebrateAllDone = useCallback(
+    (date: string, projectedHabits: Habit[], justCompleted: boolean) => {
+      if (date !== today || !justCompleted) {
+        return;
+      }
+
+      const totalHabits = projectedHabits.length;
+      const completed = projectedHabits.filter((habit) => habit.completed).length;
+
+      if (totalHabits === 0 || completed < totalHabits) {
+        celebrationShownForDateRef.current = null;
+        return;
+      }
+
+      if (celebrationShownForDateRef.current === today) {
+        return;
+      }
+
+      celebrationShownForDateRef.current = today;
+      const streak = Math.max(0, ...projectedHabits.map((habit) => habit.currentStreak ?? 0));
+
+      void playCelebrationHaptic();
+      setCelebration({ totalHabits, streak });
+      setShowCelebration(true);
+
+      if (celebrationTimerRef.current) {
+        clearTimeout(celebrationTimerRef.current);
+      }
+      celebrationTimerRef.current = setTimeout(() => {
+        setShowCelebration(false);
+        celebrationTimerRef.current = null;
+      }, 3000);
+    },
+    [today],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (celebrationTimerRef.current) {
+        clearTimeout(celebrationTimerRef.current);
+      }
+    };
+  }, []);
 
   const loadHabits = useCallback(async () => {
     if (!user) {
@@ -111,8 +175,8 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
     }
   }, [user, today]);
 
-  const loadTomorrowCompletions = useCallback(async () => {
-    if (!user || tomorrowLoaded) {
+  const loadTomorrowCompletions = useCallback(async (force = false) => {
+    if (!user || (tomorrowLoaded && !force)) {
       return;
     }
 
@@ -128,6 +192,22 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
       setTomorrowLoading(false);
     }
   }, [user, tomorrowDate, tomorrowLoaded]);
+
+  const refresh = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+
+    setRefreshing(true);
+    setTomorrowLoaded(false);
+
+    try {
+      await loadHabits();
+      await loadTomorrowCompletions(true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [user, loadHabits, loadTomorrowCompletions]);
 
   useEffect(() => {
     void loadHabits();
@@ -157,6 +237,9 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
       }
 
       const nextCompleted = !habit.completed;
+      const projectedHabits = scheduled.map((item) =>
+        item.id === id ? { ...item, completed: nextCompleted } : item,
+      );
 
       setCompletionsByDate((prev) => {
         const current = new Set(prev[date] ?? []);
@@ -167,6 +250,8 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
         }
         return { ...prev, [date]: current };
       });
+
+      maybeCelebrateAllDone(date, projectedHabits, nextCompleted);
 
       void toggleCompletion(id, user.id, date, nextCompleted).catch(() => {
         setCompletionsByDate((prev) => {
@@ -181,7 +266,7 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
         setError('Could not update habit. Tap retry to refresh.');
       });
     },
-    [getHabitsForDate, user],
+    [getHabitsForDate, user, maybeCelebrateAllDone],
   );
 
   const toggleHabit = useCallback(
@@ -303,10 +388,12 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
       tomorrowDate,
       loading,
       tomorrowLoading,
+      refreshing,
       error,
       retry: () => {
         void loadHabits();
       },
+      refresh,
       ensureTomorrowLoaded: () => {
         void loadTomorrowCompletions();
       },
@@ -320,6 +407,9 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
       progress,
       tomorrowCompletedCount,
       tomorrowProgress,
+      showCelebration,
+      celebration,
+      dismissCelebration,
     }),
     [
       allHabits,
@@ -328,8 +418,10 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
       tomorrowDate,
       loading,
       tomorrowLoading,
+      refreshing,
       error,
       loadHabits,
+      refresh,
       loadTomorrowCompletions,
       toggleHabit,
       toggleHabitForDate,
@@ -341,6 +433,9 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
       progress,
       tomorrowCompletedCount,
       tomorrowProgress,
+      showCelebration,
+      celebration,
+      dismissCelebration,
     ],
   );
 

@@ -1,17 +1,10 @@
 import { type ReactNode } from 'react';
 import { router } from 'expo-router';
-import { Alert } from 'react-native';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HabitCard } from './HabitCard';
 import { ProgressRing } from './ProgressRing';
+import { SkeletonCard } from './SkeletonCard';
 import { colors, radii, spacing } from '../constants/theme';
 import { formatDateHeader } from '../lib/utils';
 import { Habit } from '../types/habit';
@@ -21,6 +14,8 @@ type HabitDayViewProps = {
   date: Date;
   habits: Habit[];
   loading: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
   error: string | null;
   onRetry: () => void;
   onToggle: (id: string) => void;
@@ -31,7 +26,10 @@ type HabitDayViewProps = {
   emptyTitle: string;
   emptyBody: string;
   showAddButton?: boolean;
+  emptyContent?: ReactNode;
   headerExtra?: ReactNode;
+  subtitle?: string;
+  topSection?: ReactNode;
 };
 
 export function HabitDayView({
@@ -39,6 +37,8 @@ export function HabitDayView({
   date,
   habits,
   loading,
+  refreshing = false,
+  onRefresh,
   error,
   onRetry,
   onToggle,
@@ -49,32 +49,38 @@ export function HabitDayView({
   emptyTitle,
   emptyBody,
   showAddButton = false,
+  emptyContent,
   headerExtra,
+  subtitle,
+  topSection,
 }: HabitDayViewProps) {
   const dateLabel = formatDateHeader(date);
 
   const handleDelete = (habit: Habit) => {
-    Alert.alert('Delete habit?', `Remove "${habit.name}"? This keeps your history but stops reminders.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void onDelete(habit.id).catch((e) => {
-            Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete habit.');
-          });
-        },
-      },
-    ]);
+    void onDelete(habit.id).catch((e) => {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete habit.');
+    });
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          ) : undefined
+        }
+      >
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.greeting}>{title}</Text>
             <Text style={styles.date}>{dateLabel}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
             {headerExtra}
           </View>
           <ProgressRing progress={progress} />
@@ -89,29 +95,35 @@ export function HabitDayView({
 
         <View style={styles.summary}>
           <Text style={styles.summaryText}>
-            {completedCount} of {habits.length} habits complete
+            {loading ? 'Loading habits…' : `${completedCount} of ${habits.length} habits complete`}
           </Text>
         </View>
+
+        {!loading && topSection}
 
         <Text style={styles.sectionTitle}>Your habits</Text>
 
         {loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={colors.primary} />
+          <View>
+            <SkeletonCard height={80} />
+            <SkeletonCard height={80} />
+            <SkeletonCard height={80} />
           </View>
         ) : habits.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>{emptyTitle}</Text>
-            <Text style={styles.emptyBody}>{emptyBody}</Text>
-            {showAddButton ? (
-              <Pressable
-                style={styles.emptyButton}
-                onPress={() => router.push('/(tabs)/add-habit')}
-              >
-                <Text style={styles.emptyButtonText}>Add a habit</Text>
-              </Pressable>
-            ) : null}
-          </View>
+          emptyContent ?? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>{emptyTitle}</Text>
+              <Text style={styles.emptyBody}>{emptyBody}</Text>
+              {showAddButton ? (
+                <Pressable
+                  style={styles.emptyButton}
+                  onPress={() => router.push('/(tabs)/add-habit')}
+                >
+                  <Text style={styles.emptyButtonText}>Add a habit</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )
         ) : (
           habits.map((habit) => (
             <HabitCard
@@ -157,6 +169,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
+  subtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
   errorBanner: {
     backgroundColor: '#FEE2E2',
     borderRadius: radii.md,
@@ -191,10 +209,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: spacing.md,
-  },
-  loadingWrap: {
-    paddingVertical: spacing.xl,
-    alignItems: 'center',
   },
   empty: {
     backgroundColor: colors.surface,

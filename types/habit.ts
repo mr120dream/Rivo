@@ -41,6 +41,7 @@ export type Habit = {
   reminderEnabled: boolean;
   completed: boolean;
   sortOrder: number;
+  currentStreak?: number;
 };
 
 export type NewHabit = {
@@ -68,4 +69,5 @@ export type NotifiableHabit = {
   reminder_enabled: boolean;
   frequency: string;
   custom_days: number[] | null;
+  current_streak?: number;
 };
