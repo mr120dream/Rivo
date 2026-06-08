@@ -1,5 +1,5 @@
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authColors } from '../../constants/authTheme';
 import { useAuth } from '../../contexts/AuthContext';
+import { clearOnboardingJustFinished, isOnboardingJustFinished, markOnboardingComplete } from '../../lib/onboarding';
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) {
@@ -46,6 +47,15 @@ export default function SignUpScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [subtitle, setSubtitle] = useState('Build habits that stick.');
+
+  useEffect(() => {
+    void isOnboardingJustFinished().then((justFinished) => {
+      if (justFinished) {
+        setSubtitle('Create your account to save your habits across devices.');
+      }
+    });
+  }, []);
 
   const handleSignUp = async () => {
     const nextEmailError = validateEmail(email);
@@ -72,6 +82,8 @@ export default function SignUpScreen() {
       return;
     }
 
+    await markOnboardingComplete();
+    await clearOnboardingJustFinished();
     setSuccess('Account created. Check your email to confirm, then sign in.');
   };
 
@@ -87,7 +99,7 @@ export default function SignUpScreen() {
           </Pressable>
 
           <Text style={styles.logo}>Rivo</Text>
-          <Text style={styles.subtitle}>Build habits that stick.</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
 
           <View style={styles.form}>
             <Text style={styles.label}>Email</Text>

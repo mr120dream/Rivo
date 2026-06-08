@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { playCelebrationHaptic, type CelebrationData } from '../components/CelebrationOverlay';
+import { type FirstHabitCelebrationData } from '../components/FirstHabitCelebrationOverlay';
 import { isHabitScheduledForDate } from '../lib/habitSchedule';
 import {
   createHabit as createHabitInDb,
@@ -53,6 +54,9 @@ type HabitsContextValue = {
   showCelebration: boolean;
   celebration: CelebrationData | null;
   dismissCelebration: () => void;
+  showFirstHabitCelebration: boolean;
+  firstHabitCelebration: FirstHabitCelebrationData | null;
+  dismissFirstHabitCelebration: () => void;
 };
 
 const HabitsContext = createContext<HabitsContextValue | null>(null);
@@ -84,8 +88,16 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebration, setCelebration] = useState<CelebrationData | null>(null);
+  const [showFirstHabitCelebration, setShowFirstHabitCelebration] = useState(false);
+  const [firstHabitCelebration, setFirstHabitCelebration] =
+    useState<FirstHabitCelebrationData | null>(null);
   const celebrationShownForDateRef = useRef<string | null>(null);
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismissFirstHabitCelebration = useCallback(() => {
+    setShowFirstHabitCelebration(false);
+    setFirstHabitCelebration(null);
+  }, []);
 
   const dismissCelebration = useCallback(() => {
     if (celebrationTimerRef.current) {
@@ -280,6 +292,7 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
         throw new Error('You must be signed in to add a habit.');
       }
 
+      const isFirstHabit = allHabits.length === 0;
       const tempId = `temp-${Date.now()}`;
       const optimistic: Habit = {
         id: tempId,
@@ -303,6 +316,13 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
 
         if (created.reminderEnabled) {
           await scheduleHabitNotification(mapHabitToNotifiable(created));
+        }
+
+        if (isFirstHabit) {
+          setFirstHabitCelebration({
+            reminderTime: created.reminderEnabled ? created.reminderTime : null,
+          });
+          setShowFirstHabitCelebration(true);
         }
       } catch (e) {
         setAllHabits((prev) => prev.filter((item) => item.id !== tempId));
@@ -410,6 +430,9 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
       showCelebration,
       celebration,
       dismissCelebration,
+      showFirstHabitCelebration,
+      firstHabitCelebration,
+      dismissFirstHabitCelebration,
     }),
     [
       allHabits,
@@ -436,6 +459,9 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
       showCelebration,
       celebration,
       dismissCelebration,
+      showFirstHabitCelebration,
+      firstHabitCelebration,
+      dismissFirstHabitCelebration,
     ],
   );
 

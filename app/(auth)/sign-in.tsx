@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authColors } from '../../constants/authTheme';
 import { useAuth } from '../../contexts/AuthContext';
+import { clearOnboardingJustFinished, isOnboardingJustFinished, markOnboardingComplete } from '../../lib/onboarding';
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) {
@@ -47,6 +48,15 @@ export default function SignInScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [subtitle, setSubtitle] = useState('Build habits that stick.');
+
+  useEffect(() => {
+    void isOnboardingJustFinished().then((justFinished) => {
+      if (justFinished) {
+        setSubtitle('Create your account to save your habits across devices.');
+      }
+    });
+  }, []);
 
   const handleSignIn = async () => {
     const nextEmailError = validateEmail(email);
@@ -66,6 +76,8 @@ export default function SignInScreen() {
       setFormError(result.error);
       return;
     }
+    await markOnboardingComplete();
+    await clearOnboardingJustFinished();
     router.replace('/');
   };
 
@@ -93,6 +105,8 @@ export default function SignInScreen() {
       setFormError(result.error);
       return;
     }
+    await markOnboardingComplete();
+    await clearOnboardingJustFinished();
     router.replace('/');
   };
 
@@ -104,7 +118,7 @@ export default function SignInScreen() {
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <Text style={styles.logo}>Rivo</Text>
-          <Text style={styles.subtitle}>Build habits that stick.</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
 
           <View style={styles.form}>
             <Text style={styles.label}>Email</Text>

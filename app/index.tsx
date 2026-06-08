@@ -3,35 +3,41 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { authColors } from '../constants/authTheme';
 import { useAuth } from '../contexts/AuthContext';
-import { isOnboardingComplete } from '../lib/onboarding';
 import { hasSeenNotificationPermission } from '../lib/notifications';
+import { resolveOnboardingGate } from '../lib/onboarding';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 export default function Index() {
   const { session, loading } = useAuth();
   const [routeReady, setRouteReady] = useState(false);
+  const [bootstrapReady, setBootstrapReady] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
   const [needsNotificationPrompt, setNeedsNotificationPrompt] = useState(false);
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
 
   useEffect(() => {
+    if (loading) {
+      return;
+    }
+
     let cancelled = false;
 
-    isOnboardingComplete()
-      .then((complete) => {
+    resolveOnboardingGate(Boolean(session?.user))
+      .then((done) => {
         if (!cancelled) {
-          setOnboardingComplete(complete);
+          setOnboardingDone(done);
+          setBootstrapReady(true);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setOnboardingComplete(true);
+          setBootstrapReady(true);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loading, session]);
 
   useEffect(() => {
     if (!session) {
@@ -65,7 +71,7 @@ export default function Index() {
     return <Redirect href="/config-required" />;
   }
 
-  if (loading || onboardingComplete === null || (session && !routeReady)) {
+  if (loading || !bootstrapReady || (session && !routeReady)) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={authColors.accent} />
@@ -73,11 +79,10 @@ export default function Index() {
     );
   }
 
-  if (!onboardingComplete) {
-    return <Redirect href="/onboarding" />;
-  }
-
   if (!session) {
+    if (!onboardingDone) {
+      return <Redirect href="/onboarding" />;
+    }
     return <Redirect href="/(auth)/sign-in" />;
   }
 

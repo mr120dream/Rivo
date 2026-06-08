@@ -86,6 +86,8 @@ export function HabitDayView({
           <ProgressRing progress={progress} />
         </View>
 
+        {!loading && topSection}
+
         {error ? (
           <Pressable style={styles.errorBanner} onPress={onRetry}>
             <Text style={styles.errorText}>{error}</Text>
@@ -98,8 +100,6 @@ export function HabitDayView({
             {loading ? 'Loading habits…' : `${completedCount} of ${habits.length} habits complete`}
           </Text>
         </View>
-
-        {!loading && topSection}
 
         <Text style={styles.sectionTitle}>Your habits</Text>
 
