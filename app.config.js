@@ -10,7 +10,12 @@ export default ({ config }) => ({
     supportsTablet: false,
   },
   extra: {
+    ...config.extra,
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+    eas: {
+      ...config.extra?.eas,
+      projectId: '90884321-7567-4bb8-8518-d60e67219222',
+    },
   },
 });
