@@ -78,7 +78,7 @@ export default function SignInScreen() {
     }
     await markOnboardingComplete();
     await clearOnboardingJustFinished();
-    router.replace('/');
+    router.replace('/(tabs)');
   };
 
   const handleForgotPassword = async () => {
@@ -107,7 +107,7 @@ export default function SignInScreen() {
     }
     await markOnboardingComplete();
     await clearOnboardingJustFinished();
-    router.replace('/');
+    router.replace('/(tabs)');
   };
 
   return (

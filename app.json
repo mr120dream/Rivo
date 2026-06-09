@@ -2,6 +2,7 @@
   "expo": {
     "name": "rivo",
     "slug": "rivo",
+    "owner": "onetwentydreams",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,9 +10,9 @@
     "newArchEnabled": true,
     "scheme": "rivo",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0d0d0d"
     },
     "ios": {
       "supportsTablet": false,
@@ -22,7 +23,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0d0d0d"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -44,6 +45,14 @@
           "color": "#0F766E"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "supabaseUrl": "",
+      "supabaseAnonKey": "",
+      "router": {},
+      "eas": {
+        "projectId": "90884321-7567-4bb8-8518-d60e67219222"
+      }
+    }
   }
 }

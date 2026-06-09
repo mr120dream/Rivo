@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { authColors } from '../constants/authTheme';
 import { useAuth } from '../contexts/AuthContext';
 import { hasSeenNotificationPermission } from '../lib/notifications';
-import { resolveOnboardingGate } from '../lib/onboarding';
+import { isOnboardingComplete } from '../lib/onboarding';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 export default function Index() {
@@ -21,7 +21,7 @@ export default function Index() {
 
     let cancelled = false;
 
-    resolveOnboardingGate(Boolean(session?.user))
+    isOnboardingComplete()
       .then((done) => {
         if (!cancelled) {
           setOnboardingDone(done);
@@ -37,7 +37,7 @@ export default function Index() {
     return () => {
       cancelled = true;
     };
-  }, [loading, session]);
+  }, [loading]);
 
   useEffect(() => {
     if (!session) {
@@ -79,10 +79,11 @@ export default function Index() {
     );
   }
 
+  if (!onboardingDone) {
+    return <Redirect href="/onboarding" />;
+  }
+
   if (!session) {
-    if (!onboardingDone) {
-      return <Redirect href="/onboarding" />;
-    }
     return <Redirect href="/(auth)/sign-in" />;
   }
 

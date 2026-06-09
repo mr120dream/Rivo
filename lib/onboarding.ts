@@ -13,19 +13,12 @@ export async function markOnboardingComplete(): Promise<void> {
   await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
 }
 
-/** Grandfather authenticated users who predated the onboarding flow. */
-export async function resolveOnboardingGate(hasAuthenticatedUser: boolean): Promise<boolean> {
-  const complete = await isOnboardingComplete();
-  if (complete) {
-    return true;
-  }
-
-  if (hasAuthenticatedUser) {
-    await markOnboardingComplete();
-    return true;
-  }
-
-  return false;
+export async function resetOnboardingForDev(): Promise<void> {
+  await AsyncStorage.multiRemove([
+    ONBOARDING_COMPLETE_KEY,
+    ONBOARDING_JUST_FINISHED_KEY,
+    WELCOME_BACK_KEY,
+  ]);
 }
 
 export async function markOnboardingJustFinished(): Promise<void> {

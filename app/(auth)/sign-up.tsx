@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authColors } from '../../constants/authTheme';
 import { useAuth } from '../../contexts/AuthContext';
-import { clearOnboardingJustFinished, isOnboardingJustFinished, markOnboardingComplete } from '../../lib/onboarding';
+import { clearOnboardingJustFinished, isOnboardingJustFinished } from '../../lib/onboarding';
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) {
@@ -45,7 +45,6 @@ export default function SignUpScreen() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [subtitle, setSubtitle] = useState('Build habits that stick.');
 
@@ -67,7 +66,6 @@ export default function SignUpScreen() {
     setPasswordError(nextPasswordError);
     setConfirmError(nextConfirmError);
     setFormError(null);
-    setSuccess(null);
 
     if (nextEmailError || nextPasswordError || nextConfirmError) {
       return;
@@ -82,9 +80,8 @@ export default function SignUpScreen() {
       return;
     }
 
-    await markOnboardingComplete();
     await clearOnboardingJustFinished();
-    setSuccess('Account created. Check your email to confirm, then sign in.');
+    router.replace('/(tabs)');
   };
 
   return (
@@ -149,7 +146,6 @@ export default function SignUpScreen() {
             {confirmError ? <Text style={styles.fieldError}>{confirmError}</Text> : null}
 
             {formError ? <Text style={styles.formError}>{formError}</Text> : null}
-            {success ? <Text style={styles.success}>{success}</Text> : null}
 
             <Pressable
               style={[styles.primaryButton, submitting && styles.buttonDisabled]}
@@ -243,11 +239,6 @@ const styles = StyleSheet.create({
   },
   formError: {
     color: authColors.error,
-    marginTop: 16,
-    fontSize: 14,
-  },
-  success: {
-    color: authColors.success,
     marginTop: 16,
     fontSize: 14,
   },

@@ -4,7 +4,7 @@ import { AppState } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useWelcomeBack } from '../contexts/WelcomeBackContext';
 import {
-  resolveOnboardingGate,
+  isOnboardingComplete,
   shouldShowWelcomeBack,
   getLastSeenTimestamp,
   updateLastSeenTimestamp,
@@ -25,7 +25,7 @@ export function AppBootstrap() {
     checkingReturnRef.current = true;
 
     try {
-      const onboardingDone = await resolveOnboardingGate(true);
+      const onboardingDone = await isOnboardingComplete();
       if (!onboardingDone) {
         return;
       }
@@ -49,7 +49,7 @@ export function AppBootstrap() {
     let cancelled = false;
 
     async function gateOnboarding() {
-      const onboardingDone = await resolveOnboardingGate(Boolean(user));
+      const onboardingDone = await isOnboardingComplete();
       if (cancelled) {
         return;
       }
@@ -68,7 +68,6 @@ export function AppBootstrap() {
         if (!onAllowedRoute) {
           router.replace('/onboarding');
         }
-        return;
       }
     }
 

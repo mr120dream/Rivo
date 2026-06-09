@@ -27,6 +27,7 @@ import {
   type NotificationPreferences,
 } from '../../lib/notificationPreferences';
 import { applyNotificationPreferences, requestNotificationPermission } from '../../lib/notifications';
+import { resetOnboardingForDev } from '../../lib/onboarding';
 
 export default function SettingsScreen() {
   const { user, isPro, subscriptionStatus, signOut } = useAuth();
@@ -241,6 +242,22 @@ export default function SettingsScreen() {
             <Text style={styles.rowValue}>{appVersion}</Text>
           </View>
         </View>
+
+        {__DEV__ ? (
+          <>
+            <Text style={styles.sectionLabel}>Developer</Text>
+            <View style={styles.section}>
+              <Pressable
+                style={styles.rowButton}
+                onPress={() => {
+                  void resetOnboardingForDev().then(() => router.replace('/onboarding'));
+                }}
+              >
+                <Text style={styles.devResetText}>Reset onboarding (dev)</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
     </ErrorBoundary>
@@ -339,5 +356,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.error,
+  },
+  devResetText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ff4444',
   },
 });

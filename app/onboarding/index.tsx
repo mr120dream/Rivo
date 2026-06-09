@@ -16,6 +16,7 @@ import {
   markNotificationPermissionSeen,
   requestNotificationPermission,
 } from '../../lib/notifications';
+import { getSupabase } from '../../lib/supabase';
 
 const FEATURES = [
   {
@@ -42,7 +43,16 @@ async function finishOnboarding(requestNotifications: boolean) {
   await markNotificationPermissionSeen();
   await markOnboardingComplete();
   await markOnboardingJustFinished();
-  router.replace('/(auth)/sign-in');
+
+  const {
+    data: { session },
+  } = await getSupabase().auth.getSession();
+
+  if (session) {
+    router.replace('/(tabs)');
+  } else {
+    router.replace('/(auth)/sign-up');
+  }
 }
 
 function DotIndicators({ count, active }: { count: number; active: number }) {
