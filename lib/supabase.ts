@@ -3,15 +3,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
-const supabaseUrl =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ??
-  (Constants.expoConfig?.extra?.supabaseUrl as string | undefined) ??
-  '';
-
-const supabaseAnonKey =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
-  (Constants.expoConfig?.extra?.supabaseAnonKey as string | undefined) ??
-  '';
+const supabaseUrl = 'https://dlaksmnbxveymimlsnkp.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsYWtzbW5ieHZleW1pbWxzbmtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NDM0NjUsImV4cCI6MjA5NjQxOTQ2NX0.nhDfYosT16NC6JM89FP7bIyVQcLBxyOWYE5VVWrvs6Q';
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
